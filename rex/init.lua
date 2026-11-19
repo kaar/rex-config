@@ -1,3 +1,5 @@
+require("projects")
+
 -- Prefix passthrough
 rex.bind("ctrl+space>ctrl+space", "pane.send_key", { key = "ctrl+space" })
 
@@ -29,9 +31,15 @@ rex.bind("ctrl+space>shift+\\", "pane.split", { direction = "right" })
 rex.bind("ctrl+space>v", "pane.split", { direction = "right" })
 rex.bind("ctrl+space>-", "pane.split", { direction = "down" })
 rex.bind("ctrl+space>p", "client.tab.previous")
-rex.bind("alt+h", "client.tab.previous")
 rex.bind("ctrl+space>n", "client.tab.next")
-rex.bind("alt+l", "client.tab.next")
+rex.bind("ctrl+h", "pane.focus", { direction = "left" })
+rex.bind("ctrl+j", "pane.focus", { direction = "down" })
+rex.bind("ctrl+k", "pane.focus", { direction = "up" })
+rex.bind("ctrl+l", "pane.focus", { direction = "right" })
+rex.bind("alt+h", "pane.focus", { direction = "left" })
+rex.bind("alt+j", "pane.focus", { direction = "down" })
+rex.bind("alt+k", "pane.focus", { direction = "up" })
+rex.bind("alt+l", "pane.focus", { direction = "right" })
 rex.bind("ctrl+space>h", "pane.focus", { direction = "left" })
 rex.bind("ctrl+space>j", "pane.focus", { direction = "down" })
 rex.bind("ctrl+space>k", "pane.focus", { direction = "up" })
