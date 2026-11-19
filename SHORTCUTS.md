@@ -51,10 +51,12 @@ Closing a tab closes all its panes. Use `Cmd+W` if you only want to close the fo
 | Jump to a pane, tab, or session with Go to Anything | `Cmd+P` |
 | Search Rex actions in the command palette | `Cmd+Shift+P` |
 | Show or hide the sidebar | `Cmd+/` |
-| Find text in the terminal | `Cmd+F` |
+| Find text in the terminal | `Cmd+F` (moved to `Cmd+Option+F` in this setup) |
 | Go to the next or previous match while Find is open | `Cmd+G` / `Cmd+Shift+G` |
 | Start Copy Mode to select text with the keyboard | `Cmd+Shift+C` |
 | Increase, decrease, or reset text size | `Cmd+=` / `Cmd+-` / `Cmd+0` |
+
+Press `Cmd+F` to open the project picker. Rex switches to the existing session if the project is already open. Otherwise, Rex creates a session at the project root.
 
 In Copy Mode, move with the arrow keys or `h/j/k/l`. Press `v` to start a selection, then move to select more text. Press `y` or `Return` to copy it. Press `Esc` or `q` to leave Copy Mode.
 

@@ -17,7 +17,7 @@ Rex reads `~/.config/rex/init.lua` through the link. After you edit `rex/init.lu
 
 ## Open a project
 
-Press Cmd+Shift+P in Rex and choose **Open Project…**. The picker lists direct subdirectories of `$DEV`, including links to directories. If the Rex server has no `DEV` variable, the picker uses `~/Dev`.
+Press `Cmd+F` in Rex to open the project picker. It lists directories directly under `$DEV`, including links to directories. If the Rex server has no `DEV` variable, the picker uses `~/Dev`.
 
 An **Open session** label means that Rex will switch to the session with that project name. Otherwise, Rex creates a session with one shell tab at the project root. The picker does not include the README preview from Herdr's `h-open`.
 
