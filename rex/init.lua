@@ -1,9 +1,11 @@
 require("projects")
 require("scrollback")
+require("urls")
 
 rex.bind("cmd+o", "open_project")
 rex.bind("ctrl+space>f", "open_project")
 rex.bind("cmd+e", "open_scrollback")
+rex.bind("cmd+u", "open_url")
 
 rex.bind("cmd+/", "client.sidebar.toggle")
 rex.bind("cmd+b", "client.sidebar.toggle")
