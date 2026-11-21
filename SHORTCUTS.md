@@ -8,10 +8,7 @@ This guide covers the shortcuts in [`rex/init.lua`](rex/init.lua) and the built-
 
 | Action | This setup | Built-in macOS shortcut |
 | --- | --- | --- |
-| Focus the pane to the left | `Ctrl+h`, `Option+h`, or `Prefix → h` | `Cmd+Option+←` |
-| Focus the pane below | `Ctrl+j`, `Option+j`, or `Prefix → j` | `Cmd+Option+↓` |
-| Focus the pane above | `Ctrl+k`, `Option+k`, or `Prefix → k` | `Cmd+Option+↑` |
-| Focus the pane to the right | `Ctrl+l`, `Option+l`, or `Prefix → l` | `Cmd+Option+→` |
+| Focus the pane to the left, down, up, or right | `Ctrl+h/j/k/l`, `Option+h/j/k/l`, or `Prefix → h/j/k/l` | `Cmd+Option+Arrow` |
 | Cycle to the next or previous pane | | `Cmd+]` / `Cmd+[` |
 | Open a pane to the right | `Prefix → v` or `Prefix → Shift+Backslash` | `Cmd+D` |
 | Open a pane below | `Prefix → -` | `Cmd+Shift+D` |
