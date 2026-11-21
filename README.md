@@ -2,7 +2,7 @@
 
 Keyboard shortcuts for Rex, my terminal multiplexer.
 
-See [Rex shortcuts and links](SHORTCUTS.md) for the keys in this setup and how to open URLs.
+Run `rex keymap` to see the keyboard shortcuts that the running Rex server loaded from its configuration. The command lists each shortcut, its action, and the source file and line. It does not list built-in shortcuts or shortcuts set in the app.
 
 ## Install
 
@@ -17,7 +17,7 @@ Rex reads `~/.config/rex/init.lua` through the link. After you edit `rex/init.lu
 
 ## Open a project
 
-Press `Cmd+F` in Rex to open the project picker. It lists directories directly under `$DEV`, including links to directories. If the Rex server has no `DEV` variable, the picker uses `~/Dev`.
+Find the shortcut for `open_project` in the `rex keymap` output. Use it to open the project picker in Rex. The picker lists directories directly under `$DEV`, including links to directories. If the Rex server has no `DEV` variable, the picker uses `~/Dev`.
 
 An **Open session** label means that Rex will switch to the session with that project name. Otherwise, Rex creates a session with one shell tab at the project root. The picker does not include the README preview from Herdr's `h-open`.
 
