@@ -37,12 +37,23 @@ rex.action{
       items[#items + 1] = {
         id = path,
         title = name,
-        icon = "folder",
+        icon = session and "terminal" or "folder",
         detail = session == false and "Duplicate labels" or (session and "Open session" or "New session"),
       }
     end
     assert(#items > 0, "No project directories found in " .. root)
-    table.sort(items, function(a, b) return a.title < b.title end)
+    local function rank(item)
+      local session = sessions[item.title]
+      if session then return 1 end        -- One open session.
+      if session == nil then return 2 end -- No session yet.
+      return 3                            -- Duplicate labels.
+    end
+
+    table.sort(items, function(a, b)
+      local ra, rb = rank(a), rank(b)
+      if ra ~= rb then return ra < rb end
+      return a.title < b.title
+    end)
 
     local path, reason, detail = rex.ui.pick{ title = "Open Project", items = items }
     if not path then
