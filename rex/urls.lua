@@ -67,7 +67,7 @@ rex.action{
         if #items == picker_limit then break end
       end
     end
-    assert(#items > 0, "No web links in the pane's recent output.")
+    if #items == 0 then return end
 
     local url, reason, detail = rex.ui.pick{
       title = "Open URL",
