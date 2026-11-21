@@ -37,11 +37,9 @@ sub emit {
     print {$output} "$url\n" unless $seen->{$url}++;
 }
 
-sub accepted_osc8_uri {
+sub is_osc8_uri {
     my ($uri) = @_;
-    return unless length $uri;
-    return unless $uri =~ m{\A(?:https?|ftp|file)://[^\s\x00-\x1f\x7f]+\z};
-    return $uri;
+    return $uri =~ m{\A(?:https?|ftp|file)://[^\s\x00-\x1f\x7f]+\z};
 }
 
 sub extract_urls {
@@ -53,8 +51,7 @@ sub extract_urls {
         # semicolons, but URI values can. An empty URI is the closing sequence.
         # Extract the target before removing terminal escapes below.
         while ($line =~ m{\e\]8;[^\a\e;]*;([^\a\e]*)(?:\a|\e\\)}gx) {
-            my $uri = accepted_osc8_uri($1);
-            emit($output, \%seen, $uri) if defined $uri;
+            emit($output, \%seen, $1) if is_osc8_uri($1);
         }
 
         $line =~ s/\e\[[0-9;?]*[a-zA-Z]//g;      # CSI: colors, cursor movement
@@ -75,8 +72,9 @@ sub extract_urls {
                     (?<=[-\w+&\@\#/%=~|)\]])
                 )
               | (?:ssh://)?git\@(?<git_host>[^\s'"`:]+)[:/](?<git_path>[^\s'"`]+)
-              | (?<www>www\.[a-zA-Z](?:-?[a-zA-Z0-9])+\.[a-zA-Z]{2,}(?:/[^\s'"`]+)*)
-              | (?<ip>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}(?::\d{1,5})?(?:/[^\s'"`]+)*)
+              | (?<www>www\.[a-zA-Z](?:-?[a-zA-Z0-9])+(?:\.[a-zA-Z0-9](?:-?[a-zA-Z0-9])*)*\.[a-zA-Z]{2,}(?:/[^\s'"`]+)*)
+                # Not part of a longer dotted number, such as a version string.
+              | (?<ip>(?<![\w.])\d{1,3}(?:\.\d{1,3}){3}(?!\d|\.\d)(?::\d{1,5})?(?:/[^\s'"`]+)*)
             }gx
         ) {
             if    (defined $+{url})      { emit($output, \%seen, $+{url}) }
@@ -133,8 +131,14 @@ sub self_test {
             'git@github.com:owner/repo.git', "https://github.com/owner/repo.git\n"],
         ['deduplicate a bare www domain and its explicit URL',
             "www.example.com\nhttp://www.example.com\n", "http://www.example.com\n"],
+        ['bare www URL keeps its multi-part domain ending and path',
+            'www.example.co.uk/path', "http://www.example.co.uk/path\n"],
+        ['bare www domain with a multi-part suffix',
+            'www.example.co.uk/path', "http://www.example.co.uk/path\n"],
         ['bare IPv4 address with port',
             '10.0.0.1:8080', "http://10.0.0.1:8080\n"],
+        ['bare IPv4 address before a full stop',
+            'Listening on 10.0.0.1.', "http://10.0.0.1\n"],
         ['multiple URLs keep order and omit trailing punctuation',
             'See https://example.com/search?q=test#results, then http://example.org.',
             "https://example.com/search?q=test#results\nhttp://example.org\n"],
@@ -147,6 +151,9 @@ sub self_test {
         ['skip single-label host with trailing dot', 'https://www./docs', ''],
         ['quoted local path is not a GitHub link', "'docs/installation.md'", ''],
         ['quoted repository shorthand is not a GitHub link', '"owner/repo"', ''],
+        ['skip a version string with five parts', 'version 1.2.3.4.5', ''],
+        ['skip an IPv4-like string with a long last part', '1.2.3.4567', ''],
+        ['skip an IPv4-like string after a word', 'v1.2.3.4', ''],
 
         ['ANSI color codes are removed',
             "\e[32mhttps://example.com\e[0m", "https://example.com\n"],
