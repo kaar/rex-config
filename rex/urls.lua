@@ -1,8 +1,15 @@
 local terminal = "com.superlogical.terminal"
 local scan_bytes = 128 * 1024
+-- Rex measures blob_read's limit after JSON escaping, which expands VT output.
+local blob_read_limit = 960 * 1024
+local picker_limit = 2000
+-- Schemes extract-urls.pl emits. Lua patterns have no alternation.
+local openable_schemes = { http = true, https = true, ftp = true, file = true }
+-- The directory of this file, used to find extract-urls.pl next to it.
 local config_dir = assert(debug.getinfo(1, "S").source:match("^@?(.+/)"))
 local extractor = config_dir .. "extract-urls.pl"
 
+-- rex.block.call targets the focused block when no block_id is given.
 local function recent_output()
   local snapshot = assert(rex.block.call(terminal, "format", {
     format = "vt",
@@ -17,8 +24,7 @@ local function recent_output()
   local tail = assert(rex.block.call(terminal, "blob_read", {
     id = snapshot.id,
     offset = offset,
-    -- Rex measures this limit after JSON escaping, which expands VT output.
-    max_bytes = 960 * 1024,
+    max_bytes = blob_read_limit,
   }))
   assert(tail.eof, "Could not read the end of the terminal output.")
   if offset == 0 then return tail.data end
@@ -31,10 +37,14 @@ end
 local function newest_lines(output)
   -- The extractor keeps the first occurrence, so pass newer lines first.
   local lines = {}
-  for line in output:reverse():gmatch("[^\n]+") do
-    lines[#lines + 1] = line:reverse()
+  for line in output:gmatch("[^\n]+") do
+    lines[#lines + 1] = line
   end
-  return table.concat(lines, "\n")
+  local newest_first = {}
+  for i = #lines, 1, -1 do
+    newest_first[#newest_first + 1] = lines[i]
+  end
+  return table.concat(newest_first, "\n")
 end
 
 rex.action{
@@ -51,9 +61,10 @@ rex.action{
 
     local items = {}
     for url in urls.stdout:gmatch("[^\n]+") do
-      if url:match("^https?://[^%s%c]+$") then
+      local scheme = url:match("^(%a+)://[^%s%c]+$")
+      if openable_schemes[scheme] then
         items[#items + 1] = url
-        if #items == 2000 then break end -- Rex's picker limit.
+        if #items == picker_limit then break end
       end
     end
     assert(#items > 0, "No web links in the pane's recent output.")
