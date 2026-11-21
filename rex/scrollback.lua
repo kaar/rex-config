@@ -6,8 +6,9 @@ rex.action{
   run = function(ctx)
     local block_id = assert(ctx.block_id, "Focus a terminal pane first.")
     local source = assert(rex.session.describe_block{ block_id = block_id })
+    local window_id = assert(source.block.window_id, "The terminal pane must be in a tab.")
     assert(rex.session.new_layer{
-      window_id = assert(source.block.window_id, "The terminal pane must be in a tab."),
+      window_id = window_id,
       bounds = { 0.1, 0.1, 0.8, 0.8 },
       focus = true,
       layout = rex.layout.block{
