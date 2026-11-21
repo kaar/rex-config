@@ -5,6 +5,9 @@ rex.bind("cmd+o", "open_project")
 rex.bind("ctrl+space>f", "open_project")
 rex.bind("cmd+e", "open_scrollback")
 
+rex.bind("cmd+/", "client.sidebar.toggle")
+rex.bind("cmd+b", "client.sidebar.toggle")
+
 -- splits (-, |)
 rex.bind("ctrl+space>-", "pane.split", { direction = "down" })
 rex.bind("ctrl+space>shift+\\", "pane.split", { direction = "right" })
