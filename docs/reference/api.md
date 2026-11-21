@@ -411,8 +411,6 @@ The call fails with `bad_request` if `data_ref_id` or `subprotocol` is malformed
 
 ### `focus_history.reverse`
 
-<div class="api-tags"><span class="api-tag channel">Snapshot</span></div>
-
 Step back through the focus changes the calling principal made.
 
 | Field | Required | Description |
