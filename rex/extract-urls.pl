@@ -21,6 +21,10 @@ my $url_parens = qr{(\((?:$url_char++|(?-1))*+\))};
 # Parentheses belong in the path, query, or fragment, not the authority.
 # Match runs of ordinary characters to avoid Perl's per-match repeat limit.
 my $url_tail_with_parens = qr{[-\w+&\@%=~|!:,.;]*+[/?\#](?:$url_char*+$url_parens)++};
+my $domain_label = qr{[a-zA-Z0-9](?:-?[a-zA-Z0-9])*};
+my $www_domain = qr{www\.[a-zA-Z](?:-?[a-zA-Z0-9])+(?:\.$domain_label)*\.[a-zA-Z]{2,}};
+# Not part of a longer dotted number, such as a version string.
+my $bare_ipv4 = qr{(?<![\w.])\d{1,3}(?:\.\d{1,3}){3}(?!\d|\.\d)};
 
 sub emit {
     my ($output, $seen, $url) = @_;
@@ -72,9 +76,8 @@ sub extract_urls {
                     (?<=[-\w+&\@\#/%=~|)\]])
                 )
               | (?:ssh://)?git\@(?<git_host>[^\s'"`:]+)[:/](?<git_path>[^\s'"`]+)
-              | (?<www>www\.[a-zA-Z](?:-?[a-zA-Z0-9])+(?:\.[a-zA-Z0-9](?:-?[a-zA-Z0-9])*)*\.[a-zA-Z]{2,}(?:/[^\s'"`]+)*)
-                # Not part of a longer dotted number, such as a version string.
-              | (?<ip>(?<![\w.])\d{1,3}(?:\.\d{1,3}){3}(?!\d|\.\d)(?::\d{1,5})?(?:/[^\s'"`]+)*)
+              | (?<www>$www_domain(?:/[^\s'"`]+)*)
+              | (?<ip>$bare_ipv4(?::\d{1,5})?(?:/[^\s'"`]+)*)
             }gx
         ) {
             if    (defined $+{url})      { emit($output, \%seen, $+{url}) }
@@ -131,8 +134,6 @@ sub self_test {
             'git@github.com:owner/repo.git', "https://github.com/owner/repo.git\n"],
         ['deduplicate a bare www domain and its explicit URL',
             "www.example.com\nhttp://www.example.com\n", "http://www.example.com\n"],
-        ['bare www URL keeps its multi-part domain ending and path',
-            'www.example.co.uk/path', "http://www.example.co.uk/path\n"],
         ['bare www domain with a multi-part suffix',
             'www.example.co.uk/path', "http://www.example.co.uk/path\n"],
         ['bare IPv4 address with port',
