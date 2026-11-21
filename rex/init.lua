@@ -1,6 +1,7 @@
 require("projects")
 require("scrollback")
 
+rex.bind("cmd+o", "open_project")
 rex.bind("ctrl+space>f", "open_project")
 rex.bind("cmd+e", "open_scrollback")
 
