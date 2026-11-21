@@ -1,6 +1,8 @@
 require("projects")
-rex.bind("cmd+f", "open_project")
-rex.bind("alt+cmd+f", "client.find.open")
+require("scrollback")
+
+rex.bind("ctrl+space>f", "open_project")
+rex.bind("cmd+e", "open_scrollback")
 
 -- Prefix passthrough
 rex.bind("ctrl+space>ctrl+space", "pane.send_key", { key = "ctrl+space" })
