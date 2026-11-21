@@ -29,8 +29,7 @@ If a terminal program needs `Ctrl+Space`, press `Prefix → Ctrl+Space` to send 
 | Action | This setup | Built-in macOS shortcut |
 | --- | --- | --- |
 | Create a tab | | `Cmd+T` |
-| Go to the next tab | `Prefix → n` | `Ctrl+Tab` or `Cmd+Shift+]` |
-| Go to the previous tab | `Prefix → p` | `Ctrl+Shift+Tab` or `Cmd+Shift+[` |
+| Go to the next or previous tab | `Prefix → n/p` | `Ctrl+Tab` or `Cmd+Shift+]` / `Ctrl+Shift+Tab` or `Cmd+Shift+[` |
 | Go to a tab by number | `Option+1` through `Option+9` | `Cmd+1` through `Cmd+9` |
 | Rename the current tab | `Prefix → ,` or `Prefix → Shift+t` | |
 | Move the current tab earlier or later | | `Ctrl+Shift+Page Up` / `Ctrl+Shift+Page Down` |
