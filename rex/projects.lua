@@ -25,7 +25,7 @@ rex.action{
     assert(root:sub(1, 1) == "/", "Set DEV to an absolute path on the Rex server.")
 
     local dirs = assert(rex.exec({
-      "/usr/bin/find", "-L", root, "-mindepth", "1", "-maxdepth", "1", "-type", "d", "-print0",
+      "/usr/bin/find", "-L", root, "-mindepth", "1", "-maxdepth", "1", "-type", "d", "!", "-name", ".git", "-print0",
     }))
     assert(dirs.ok, "Could not list projects in " .. root .. ": " .. dirs.stderr)
 
