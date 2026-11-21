@@ -41,7 +41,10 @@ end
 
 local function list_project_dirs(root)
   local dirs = assert(rex.exec({
-    "/usr/bin/find", "-L", root, "-mindepth", "1", "-maxdepth", "1", "-type", "d", "!", "-name", ".git", "-print0",
+    "/usr/bin/find", "-L", root,        -- -L: count symlinked projects as folders.
+    "-mindepth", "1", "-maxdepth", "1", -- Folders directly inside root only.
+    "-type", "d", "!", "-name", ".git", -- The root can itself be a Git repository.
+    "-print0",                          -- Folder names can contain newlines.
   }))
   assert(dirs.ok, "Could not list projects in " .. root .. ": " .. dirs.stderr)
 
