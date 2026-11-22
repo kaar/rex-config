@@ -4,7 +4,8 @@
 # Run the built-in tests with: perl rex/extract-urls.pl --self-test
 #
 # Each row is handled on its own:
-#   1. Print any OSC 8 hyperlink targets, then remove terminal escape sequences.
+#   1. Print any OSC 8 hyperlink targets. Replace cursor-forward gaps with a
+#      space, then remove the remaining escape sequences.
 #   2. Match a scheme (http, https, file) followed by runs of URL
 #      characters or complete, non-nested groups in parentheses or brackets.
 #      Raw braces are delimiters.
@@ -23,12 +24,17 @@ my $url_re = qr{($scheme_prefix(?:$url_char++|\($url_char*+\)|\[$url_char*+\])+)
 
 # OSC 8 is ESC ] 8 ; params ; URI (BEL | ST).
 my $osc8_link = qr{\e\]8;[^\a\e;]*;($scheme_prefix[^\s\x00-\x1f\x7f]+?)(?:\a|\e\\)};
-my $terminal_escape = qr{\e\][^\a\e]*(?:\a|\e\\)?|\e\[[0-?]*[ -\/]*[@-~]|\e[ -\/]*[0-~]?|[\x00-\x08\x0b-\x1f\x7f]};
+# Rex's VT capture writes skipped blank cells as CSI n C (cursor forward).
+my $cursor_forward = qr{\e\[\d*C};
+# The capture is re-rendered from the screen, so only CSI and OSC sequences
+# appear. Carriage returns are whitespace and already end a URL.
+my $terminal_escape = qr{\e\][^\a\e]*(?:\a|\e\\)?|\e\[[0-?]*[ -\/]*[@-~]};
 
 sub extract_urls {
     my ($input, $output) = @_;
     while (my $row = <$input>) {
         print {$output} "$1\n" while $row =~ m{$osc8_link}g;
+        $row =~ s{$cursor_forward}{ }g;
         $row =~ s{$terminal_escape}{}g;
 
         while ($row =~ /$url_re/g) {
@@ -103,6 +109,9 @@ sub self_test {
         ["no scheme, no link",
             "www.example.com git\@github.com:o/r.git 10.0.0.1:80",
             ""],
+        ["a cursor-forward gap separates words",
+            "https://example.com/a\e[5Cnext",
+            "https://example.com/a\n"],
         ["ANSI color codes are removed",
             "\e[32mhttps://example.com\e[0m",
             "https://example.com\n"],
