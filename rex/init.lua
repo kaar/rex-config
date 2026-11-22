@@ -25,8 +25,14 @@ rex.bind("ctrl+space>shift+1", "pane.move_to_new_tab")
 rex.bind("alt+j", "client.tab.next")
 rex.bind("alt+k", "client.tab.previous")
 
--- pane focus
-rex.bind("ctrl+h", "pane.focus", { direction = "left" })
-rex.bind("ctrl+j", "pane.focus", { direction = "down" })
-rex.bind("ctrl+k", "pane.focus", { direction = "up" })
-rex.bind("ctrl+l", "pane.focus", { direction = "right" })
+-- Navigate between Neovim splits and Rex panes.
+local ok, err = pcall(function()
+  local data = os.getenv("XDG_DATA_HOME")
+  if not data or data == "" then
+    data = os.getenv("HOME") .. "/.local/share"
+  end
+  dofile(data .. "/nvim/site/pack/core/opt/rex-navigator.nvim/rex/rex-navigator.lua").setup()
+end)
+if not ok then
+  rex.log("warn", "rex-navigator not loaded: " .. tostring(err))
+end
