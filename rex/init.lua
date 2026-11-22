@@ -14,6 +14,9 @@ rex.bind("cmd+b", "client.sidebar.toggle")
 rex.bind("ctrl+space>-", "pane.split", { direction = "down" })
 rex.bind("ctrl+space>shift+\\", "pane.split", { direction = "right" })
 
+-- move pane to a new tab (!)
+rex.bind("ctrl+space>shift+1", "pane.move_to_new_tab")
+
 -- tab navigation
 rex.bind("alt+j", "client.tab.next")
 rex.bind("alt+k", "client.tab.previous")
