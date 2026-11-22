@@ -33,4 +33,15 @@ function M.recent_output(block_id, format)
   return newline and tail.data:sub(newline + 1) or ""
 end
 
+-- Use the foreground process's directory, not the terminal's last reported one.
+function M.working_directory(block_id)
+  local process, err = call("process", { block_id = block_id })
+  if not process then error("Could not look up the terminal's working directory: " .. err, 0) end
+  local foreground = process.foreground
+  local cwd = foreground and foreground.cwd
+  if type(cwd) == "string" and cwd:sub(1, 1) == "/" then
+    return cwd
+  end
+end
+
 return M
