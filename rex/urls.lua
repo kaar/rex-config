@@ -3,6 +3,10 @@ local scan_bytes = 128 * 1024
 -- Rex measures blob_read's limit after JSON escaping, which expands VT output.
 local blob_read_limit = 960 * 1024
 local picker_limit = 2000
+-- Rex does not expose the picker width. Leave room before the client clips.
+local subtitle_limit = 52
+-- Bytes of query or fragment to keep, so similar links can be told apart.
+local suffix_room = 20
 -- The directory of this file, used to find extract-urls.pl next to it.
 local config_dir = assert(debug.getinfo(1, "S").source:match("^@?(.+/)"))
 local extractor = config_dir .. "extract-urls.pl"
@@ -32,6 +36,28 @@ local function recent_output()
   return newline and tail.data:sub(newline + 1) or ""
 end
 
+-- Lengths count bytes. Visible URLs are ASCII; rare OSC 8 targets may not be.
+local function url_item(url)
+  local origin, path, suffix = url:match("^(%a+://[^/?#]*)([^?#]*)(.*)$")
+  local leaf = path:match("^.*/([^/]+/*)$")
+  local subtitle = url
+  if #url > subtitle_limit then
+    -- Drop middle path segments if needed, so the start of the query or
+    -- fragment still fits.
+    local base = origin .. path
+    local room = math.min(#suffix, suffix_room)
+    if leaf and #base + room > subtitle_limit - #"…" then
+      local short = origin .. "/…/" .. leaf
+      if #short < #base then base = short end
+    end
+    subtitle = base .. suffix
+    if #subtitle > subtitle_limit then
+      subtitle = subtitle:sub(1, subtitle_limit - #"…") .. "…"
+    end
+  end
+  return { id = url, title = leaf or origin .. path, subtitle = subtitle }
+end
+
 rex.action{
   name = "open_url",
   title = "Open URL from Scrollback…",
@@ -55,7 +81,7 @@ rex.action{
       local url = found[i]
       if not seen[url] then
         seen[url] = true
-        items[#items + 1] = url
+        items[#items + 1] = url_item(url)
         if #items == picker_limit then break end
       end
     end
