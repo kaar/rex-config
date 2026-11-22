@@ -1,14 +1,14 @@
 #!/usr/bin/env perl
-# Reads pane text on stdin and prints every URL occurrence in capture order,
-# one per line. The caller orders and deduplicates them.
+# Reads pane text on stdin and prints HTTP(S) URLs in capture order, one per
+# line. The caller orders and deduplicates them.
 # Run the built-in tests with: perl rex/extract-urls.pl --self-test
 #
 # Each row is handled on its own:
-#   1. Print any OSC 8 hyperlink targets. Replace cursor-forward gaps with a
-#      space, then remove the remaining escape sequences.
+#   1. Print HTTP(S) OSC 8 hyperlink targets. Replace cursor-forward gaps
+#      with a space, then remove the remaining escape sequences.
 #   2. Match a scheme (http, https, file) followed by runs of URL
 #      characters or complete, non-nested groups in parentheses or brackets.
-#      Raw braces are delimiters.
+#      Raw braces are delimiters. Consume file URLs without printing them.
 #   3. Skip a URL that follows an opener whose closer is not on the row, or
 #      that contains or is followed by $. These are cut or templated values.
 #   4. Remove trailing punctuation (,.?!;:).
@@ -16,16 +16,17 @@
 use strict;
 use warnings;
 
-my $scheme_prefix = qr{(?:https?|file)://};
+my $web_prefix = qr{https?://};
+my $visible_prefix = qr{$web_prefix|(?i:file)://};
 # Only ASCII. Any non-ASCII byte, such as a box-drawing border, a dash, or a
 # non-breaking space, ends the URL.
 my $url_char = qr{[^\x80-\xff\s"'`<>\\()\[\]\{\}]};
 
 # Match runs of ordinary characters to avoid Perl's repeat limit.
-my $url_re = qr{($scheme_prefix(?:$url_char++|\($url_char*+\)|\[$url_char*+\])+)};
+my $url_re = qr{($visible_prefix(?:$url_char++|\($url_char*+\)|\[$url_char*+\])+)};
 
 # OSC 8 is ESC ] 8 ; params ; URI (BEL | ST).
-my $osc8_link = qr{\e\]8;[^\a\e;]*;($scheme_prefix[^\s\x00-\x1f\x7f]+?)(?:\a|\e\\)};
+my $osc8_link = qr{\e\]8;[^\a\e;]*;($web_prefix[^\s\x00-\x1f\x7f]+?)(?:\a|\e\\)};
 # Rex's VT capture writes skipped blank cells as CSI n C (cursor forward).
 my $cursor_forward = qr{\e\[\d*C};
 # The capture is re-rendered from the screen, so only CSI and OSC sequences
@@ -43,6 +44,7 @@ sub extract_urls {
 
         while ($row =~ /$url_re/g) {
             my $url = $1;
+            next if $url =~ m{\Afile://}i;
             my $opener = $-[0] ? substr($row, $-[0] - 1, 1) : '';
             next if $closer{$opener} && index($row, $closer{$opener}, $+[0]) < 0;
             # A shell or template variable means the URL is not literal.
@@ -135,6 +137,12 @@ sub self_test {
         ["skip a URL followed by a template variable",
             "https://example.org/\${p}",
             ""],
+        ["skip visible file URLs without extracting nested web URLs",
+            "file:///tmp/a.txt FILE:///tmp/b.txt?ref=https://example.org/hidden https://example.org/visible",
+            "https://example.org/visible\n"],
+        ["skip OSC 8 file targets and keep web targets",
+            "\e]8;;file:///tmp/a.txt\afile\e]8;;\a \e]8;;https://example.org/web\e\\web\e]8;;\e\\",
+            "https://example.org/web\n"],
         ["OSC 8 target comes before visible text",
             "https://example.org/a \e]8;;https://example.org/b\alink\e]8;;\e\\",
             "https://example.org/b\nhttps://example.org/a\n"],
