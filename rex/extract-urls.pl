@@ -1,175 +1,124 @@
 #!/usr/bin/env perl
-# Reads pane text on stdin and prints deduplicated URLs, one per line.
-# OSC 8 targets are collected before terminal escapes are removed.
+# Reads pane text on stdin and prints every URL occurrence in capture order,
+# one per line. The caller orders and deduplicates them.
 # Run the built-in tests with: perl rex/extract-urls.pl --self-test
 #
-# Patterns run as one alternation per line, so an earlier match consumes its
-# text and a later pattern cannot re-match inside it (https://www.example.com
-# is one URL, not also a www match). Priority order:
-#
-#   URL  https/http/ftp/file URLs, kept verbatim
-#   GIT  git@host:path / ssh://git@host/path  -> https://host/path
-#   WWW  bare www. domains                    -> http://www...
-#   IP   v4 address, optional port and path   -> http://1.2.3.4...
+# Each row is handled on its own:
+#   1. Print any OSC 8 hyperlink targets, then remove terminal escape sequences.
+#   2. Match a scheme (http, https, file) followed by runs of URL
+#      characters or complete, non-nested groups in parentheses or brackets.
+#      Raw braces are delimiters.
+#   3. Remove trailing punctuation (,.?!;:).
+# A URL split across rows by a real newline is not joined.
 use strict;
 use warnings;
 
-my $ipv6_literal = qr{\[[0-9a-f:.]+\]}i;
-my $url_char = qr{[-\w+&\@\#/%?=~|!:,.;]};
-# (?-1) recurses into the parenthesized group so nested pairs stay intact.
-my $url_parens = qr{(\((?:$url_char++|(?-1))*+\))};
-# Parentheses belong in the path, query, or fragment, not the authority.
-# Match runs of ordinary characters to avoid Perl's per-match repeat limit.
-my $url_tail_with_parens = qr{[-\w+&\@%=~|!:,.;]*+[/?\#](?:$url_char*+$url_parens)++};
-my $domain_label = qr{[a-zA-Z0-9](?:-?[a-zA-Z0-9])*};
-my $www_domain = qr{www\.[a-zA-Z](?:-?[a-zA-Z0-9])+(?:\.$domain_label)*\.[a-zA-Z]{2,}};
-# Not part of a longer dotted number, such as a version string.
-my $bare_ipv4 = qr{(?<![\w.])\d{1,3}(?:\.\d{1,3}){3}(?!\d|\.\d)};
+my $scheme_prefix = qr{(?:https?|file)://};
+# Only ASCII. Any non-ASCII byte, such as a box-drawing border, a dash, or a
+# non-breaking space, ends the URL.
+my $url_char = qr{[^\x80-\xff\s"'`<>\\()\[\]\{\}]};
 
-sub emit {
-    my ($output, $seen, $url) = @_;
-    if ($url =~ m{\Ahttps?:}i) {
-        my ($authority) = $url =~ m{\Ahttps?://([^/?#]+)}i;
-        return unless defined $authority;
-        $authority =~ s/.*\@//; # Ignore user info when checking the host.
-        # Skip single-label hosts that often come from clipped terminal text.
-        return unless $authority =~ m{
-            \A (?: localhost | [\w-]+(?:\.[\w-]+)+\.? | $ipv6_literal )
-            (?::\d+)? \z
-        }ix;
-    }
-    print {$output} "$url\n" unless $seen->{$url}++;
-}
+# Match runs of ordinary characters to avoid Perl's repeat limit.
+my $url_re = qr{($scheme_prefix(?:$url_char++|\($url_char*+\)|\[$url_char*+\])+)};
 
-sub is_osc8_uri {
-    my ($uri) = @_;
-    return $uri =~ m{\A(?:https?|ftp|file)://[^\s\x00-\x1f\x7f]+\z};
-}
+# OSC 8 is ESC ] 8 ; params ; URI (BEL | ST).
+my $osc8_link = qr{\e\]8;[^\a\e;]*;($scheme_prefix[^\s\x00-\x1f\x7f]+?)(?:\a|\e\\)};
+my $terminal_escape = qr{\e\][^\a\e]*(?:\a|\e\\)?|\e\[[0-?]*[ -\/]*[@-~]|\e[ -\/]*[0-~]?|[\x00-\x08\x0b-\x1f\x7f]};
 
 sub extract_urls {
     my ($input, $output) = @_;
-    my %seen;
+    while (my $row = <$input>) {
+        print {$output} "$1\n" while $row =~ m{$osc8_link}g;
+        $row =~ s{$terminal_escape}{}g;
 
-    while (my $line = <$input>) {
-        # OSC 8 is ESC ] 8 ; params ; URI (BEL | ST). Parameters cannot contain
-        # semicolons, but URI values can. An empty URI is the closing sequence.
-        # Extract the target before removing terminal escapes below.
-        while ($line =~ m{\e\]8;[^\a\e;]*;([^\a\e]*)(?:\a|\e\\)}gx) {
-            emit($output, \%seen, $1) if is_osc8_uri($1);
-        }
-
-        $line =~ s/\e\[[0-9;?]*[a-zA-Z]//g;      # CSI: colors, cursor movement
-        $line =~ s/\e\][^\a\e]*(?:\a|\e\\)?//g;  # OSC: hyperlinks, titles
-
-        while (
-            $line =~ m{
-                (?<url>
-                    (?:https?|ftp|file):/?//
-                    (?:
-                        (?: (?:[-\w+&%=:!,.;~|]*\@)? $ipv6_literal $url_tail_with_parens?
-                          | $url_tail_with_parens
-                        )
-                        $url_char*
-                      | $url_char+
-                    )
-                    # Exclude trailing prose punctuation, but keep matched pairs.
-                    (?<=[-\w+&\@\#/%=~|)\]])
-                )
-              | (?:ssh://)?git\@(?<git_host>[^\s'"`:]+)[:/](?<git_path>[^\s'"`]+)
-              | (?<www>$www_domain(?:/[^\s'"`]+)*)
-              | (?<ip>$bare_ipv4(?::\d{1,5})?(?:/[^\s'"`]+)*)
-            }gx
-        ) {
-            if    (defined $+{url})      { emit($output, \%seen, $+{url}) }
-            elsif (defined $+{git_host}) { emit($output, \%seen, "https://$+{git_host}/$+{git_path}") }
-            elsif (defined $+{www})      { emit($output, \%seen, "http://$+{www}") }
-            elsif (defined $+{ip})       { emit($output, \%seen, "http://$+{ip}") }
+        while ($row =~ /$url_re/g) {
+            my $url = $1;
+            $url =~ s/[,.?!;:]+\z//;
+            print {$output} "$url\n";
         }
     }
-}
-
-sub capture_extraction {
-    my ($text) = @_;
-    open my $input, '<', \$text or die "Cannot open test input: $!";
-    my $actual = '';
-    open my $output, '>', \$actual or die "Cannot open test output: $!";
-    extract_urls($input, $output);
-    close $output or die "Cannot close test output: $!";
-    return $actual;
 }
 
 sub self_test {
     require Test::More;
-
-    my $long_url = 'https://example.com/' . ('a' x (70 * 1024));
     my @cases = (
         # Name, input, expected stdout
-        ['empty input', '', ''],
-        ['URL is not also matched as bare www',
-            'https://www.example.com/path.md', "https://www.example.com/path.md\n"],
-        ['localhost with port and path',
-            'http://localhost:3000/docs', "http://localhost:3000/docs\n"],
-        ['explicit IPv4 URL',
-            'https://192.168.1.1:8080/', "https://192.168.1.1:8080/\n"],
-        ['plain-text IPv6 URL with port',
-            'http://[::1]:3000', "http://[::1]:3000\n"],
-        ['plain-text IPv6 URL ending at the host',
-            'See http://[2001:db8::1].', "http://[2001:db8::1]\n"],
-        ['bare IPv4 does not rematch inside an IPv6 URL',
-            'http://[::ffff:192.0.2.1]/docs', "http://[::ffff:192.0.2.1]/docs\n"],
-        ['balanced parentheses in a URL path',
-            'https://example.com/wiki/Foo_(bar)', "https://example.com/wiki/Foo_(bar)\n"],
-        ['nested parentheses with surrounding punctuation',
-            '(https://example.com/wiki/Foo_(bar(baz))).',
-            "https://example.com/wiki/Foo_(bar(baz))\n"],
-        ['ignore a surrounding closing parenthesis and period',
-            '(https://example.com).', "https://example.com\n"],
-        ['parenthetical prose is not part of the host',
-            'https://example.com(note)', "https://example.com\n"],
-        ['long URL is not truncated', "$long_url.", "$long_url\n"],
-        ['explicit GitHub URL',
-            'https://github.com/owner/repo/blob/main/docs/installation.md',
-            "https://github.com/owner/repo/blob/main/docs/installation.md\n"],
-        ['Git SSH remote becomes a web URL',
-            'git@github.com:owner/repo.git', "https://github.com/owner/repo.git\n"],
-        ['deduplicate a bare www domain and its explicit URL',
-            "www.example.com\nhttp://www.example.com\n", "http://www.example.com\n"],
-        ['bare www domain with a multi-part suffix',
-            'www.example.co.uk/path', "http://www.example.co.uk/path\n"],
-        ['bare IPv4 address with port',
-            '10.0.0.1:8080', "http://10.0.0.1:8080\n"],
-        ['bare IPv4 address before a full stop',
-            'Listening on 10.0.0.1.', "http://10.0.0.1\n"],
-        ['multiple URLs keep order and omit trailing punctuation',
-            'See https://example.com/search?q=test#results, then http://example.org.',
-            "https://example.com/search?q=test#results\nhttp://example.org\n"],
-
-        ['skip clipped www in prose', 'ok   https://www not doubled', ''],
-        ['skip clipped host', 'https://gith', ''],
-        ['skip single-label intranet host', 'http://intranet:8080/docs', ''],
-        ['skip single-label host with path', 'https://gith/path.md', ''],
-        ['do not mistake user info for a hostname', 'https://user.name@gith', ''],
-        ['skip single-label host with trailing dot', 'https://www./docs', ''],
-        ['quoted local path is not a GitHub link', "'docs/installation.md'", ''],
-        ['quoted repository shorthand is not a GitHub link', '"owner/repo"', ''],
-        ['skip a version string with five parts', 'version 1.2.3.4.5', ''],
-        ['skip an IPv4-like string with a long last part', '1.2.3.4567', ''],
-        ['skip an IPv4-like string after a word', 'v1.2.3.4', ''],
-
-        ['ANSI color codes are removed',
-            "\e[32mhttps://example.com\e[0m", "https://example.com\n"],
-        ['OSC 8 target with ST terminator',
-            "\e]8;;https://example.com\e\\link text\e]8;;\e\\", "https://example.com\n"],
-        ['skip OSC 8 target with clipped host', "\e]8;;https://gith\aignored\e]8;;\a", ''],
-        ['OSC 8 IPv6 target with BEL terminator',
-            "\e]8;;http://[::1]:3000\aopen\e]8;;\a", "http://[::1]:3000\n"],
+        ["empty input",
+            "",
+            ""],
+        ["plain URL",
+            "see https://example.com/a?b=c#d",
+            "https://example.com/a?b=c#d\n"],
+        ["several URLs keep order and drop trailing punctuation",
+            "https://example.com/a, then http://example.org.",
+            "https://example.com/a\nhttp://example.org\n"],
+        ["stop before a shell command separator",
+            "curl https://example.com/a; echo done",
+            "https://example.com/a\n"],
+        ["drop a trailing prose colon",
+            "See https://example.com/a:",
+            "https://example.com/a\n"],
+        ["repeats are printed in capture order",
+            "https://example.org/new\nhttps://example.org/old https://example.org/new",
+            "https://example.org/new\nhttps://example.org/old\nhttps://example.org/new\n"],
+        ["stop at a closing quote",
+            "url=\"https://example.com/a\" x",
+            "https://example.com/a\n"],
+        ["stop at a closing parenthesis",
+            "(https://example.com/a).",
+            "https://example.com/a\n"],
+        ["stop at a closing bracket",
+            "[https://example.com/a]",
+            "https://example.com/a\n"],
+        ["stop at either raw brace",
+            "{https://example.com/a} https://example.com/b{suffix} https://example.com/c}suffix",
+            "https://example.com/a\nhttps://example.com/b\nhttps://example.com/c\n"],
+        ["keep percent-encoded braces",
+            "https://example.com/%7Ba%7D",
+            "https://example.com/%7Ba%7D\n"],
+        ["no opener keeps parentheses",
+            "https://example.com/wiki/Foo_(bar)",
+            "https://example.com/wiki/Foo_(bar)\n"],
+        ["keep balanced parentheses inside a wrapped URL",
+            "(https://example.com/wiki/Foo_(bar)).",
+            "https://example.com/wiki/Foo_(bar)\n"],
+        ["IPv6 host",
+            "http://[::1]:3000/docs",
+            "http://[::1]:3000/docs\n"],
+        ["keep IPv6 brackets inside a wrapped URL",
+            "[http://[::1]:3000/docs]",
+            "http://[::1]:3000/docs\n"],
+        ["extract both adjacent Markdown links",
+            "[one](https://example.com/a)[two](https://example.org/b)",
+            "https://example.com/a\nhttps://example.org/b\n"],
+        ["stop at a box-drawing border",
+            "\x{e2}\x{94}\x{82}https://example.com/a\x{e2}\x{94}\x{82}",
+            "https://example.com/a\n"],
+        ["stop at a non-ASCII letter",
+            "https://example.com/caf\x{c3}\x{a9}",
+            "https://example.com/caf\n"],
+        ["long URL is not truncated",
+            "https://example.com/" . ("a" x 70_000),
+            "https://example.com/" . ("a" x 70_000) . "\n"],
+        ["no scheme, no link",
+            "www.example.com git\@github.com:o/r.git 10.0.0.1:80",
+            ""],
+        ["ANSI color codes are removed",
+            "\e[32mhttps://example.com\e[0m",
+            "https://example.com\n"],
+        ["OSC 8 target comes before visible text",
+            "https://example.org/a \e]8;;https://example.org/b\alink\e]8;;\e\\",
+            "https://example.org/b\nhttps://example.org/a\n"],
     );
-
     for my $case (@cases) {
-        my ($name, $input, $expected) = @$case;
-        Test::More::is(capture_extraction($input), $expected, $name);
+        my ($name, $text, $expected) = @$case;
+        open my $input, '<', \$text or die "Cannot open test input: $!";
+        my $actual = '';
+        open my $output, '>', \$actual or die "Cannot open test output: $!";
+        extract_urls($input, $output);
+        close $output or die "Cannot close test output: $!";
+        Test::More::is($actual, $expected, $name);
     }
-
     Test::More::done_testing();
 }
 

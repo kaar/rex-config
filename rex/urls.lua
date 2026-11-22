@@ -3,8 +3,6 @@ local scan_bytes = 128 * 1024
 -- Rex measures blob_read's limit after JSON escaping, which expands VT output.
 local blob_read_limit = 960 * 1024
 local picker_limit = 2000
--- Schemes extract-urls.pl emits. Lua patterns have no alternation.
-local openable_schemes = { http = true, https = true, ftp = true, file = true }
 -- The directory of this file, used to find extract-urls.pl next to it.
 local config_dir = assert(debug.getinfo(1, "S").source:match("^@?(.+/)"))
 local extractor = config_dir .. "extract-urls.pl"
@@ -34,19 +32,6 @@ local function recent_output()
   return newline and tail.data:sub(newline + 1) or ""
 end
 
-local function newest_lines(output)
-  -- The extractor keeps the first occurrence, so pass newer lines first.
-  local lines = {}
-  for line in output:gmatch("[^\n]+") do
-    lines[#lines + 1] = line
-  end
-  local newest_first = {}
-  for i = #lines, 1, -1 do
-    newest_first[#newest_first + 1] = lines[i]
-  end
-  return table.concat(newest_first, "\n")
-end
-
 rex.action{
   name = "open_url",
   title = "Open URL from Scrollback…",
@@ -55,14 +40,21 @@ rex.action{
   run = function(ctx)
     assert(ctx.block_id, "Focus a terminal pane first.")
     local urls = assert(rex.exec({ "/usr/bin/perl", extractor }, {
-      stdin = newest_lines(recent_output()),
+      stdin = recent_output(),
     }))
     assert(urls.ok, "Could not extract URLs: " .. urls.stderr)
 
-    local items = {}
+    -- The extractor prints every occurrence oldest first. Show the newest
+    -- occurrence of each target first.
+    local found = {}
     for url in urls.stdout:gmatch("[^\n]+") do
-      local scheme = url:match("^(%a+)://[^%s%c]+$")
-      if openable_schemes[scheme] then
+      found[#found + 1] = url
+    end
+    local items, seen = {}, {}
+    for i = #found, 1, -1 do
+      local url = found[i]
+      if not seen[url] then
+        seen[url] = true
         items[#items + 1] = url
         if #items == picker_limit then break end
       end
