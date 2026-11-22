@@ -9,7 +9,9 @@
 #   2. Match a scheme (http, https, file) followed by runs of URL
 #      characters or complete, non-nested groups in parentheses or brackets.
 #      Raw braces are delimiters.
-#   3. Remove trailing punctuation (,.?!;:).
+#   3. Skip a URL that follows an opener whose closer is not on the row, or
+#      that contains or is followed by $. These are cut or templated values.
+#   4. Remove trailing punctuation (,.?!;:).
 # A URL split across rows by a real newline is not joined.
 use strict;
 use warnings;
@@ -29,6 +31,8 @@ my $cursor_forward = qr{\e\[\d*C};
 # The capture is re-rendered from the screen, so only CSI and OSC sequences
 # appear. Carriage returns are whitespace and already end a URL.
 my $terminal_escape = qr{\e\][^\a\e]*(?:\a|\e\\)?|\e\[[0-?]*[ -\/]*[@-~]};
+# A URL that follows an opener must reach its closer on the same row.
+my %closer = ("(" => ")", "[" => "]", "{" => "}", "<" => ">", '"' => '"', "'" => "'", "`" => "`");
 
 sub extract_urls {
     my ($input, $output) = @_;
@@ -39,6 +43,10 @@ sub extract_urls {
 
         while ($row =~ /$url_re/g) {
             my $url = $1;
+            my $opener = $-[0] ? substr($row, $-[0] - 1, 1) : '';
+            next if $closer{$opener} && index($row, $closer{$opener}, $+[0]) < 0;
+            # A shell or template variable means the URL is not literal.
+            next if $url =~ /\$/ || substr($row, $+[0], 1) eq '$';
             $url =~ s/[,.?!;:]+\z//;
             print {$output} "$url\n";
         }
@@ -115,6 +123,18 @@ sub self_test {
         ["ANSI color codes are removed",
             "\e[32mhttps://example.com\e[0m",
             "https://example.com\n"],
+        ["skip a URL whose quote is not closed on the row",
+            "{\"url\":\"https://example.org/a/RE",
+            ""],
+        ["skip a URL whose parenthesis is not closed on the row",
+            "(https://example.org/a",
+            ""],
+        ["skip a URL with a variable in it",
+            "curl \"https://github.com/\$repo\"",
+            ""],
+        ["skip a URL followed by a template variable",
+            "https://example.org/\${p}",
+            ""],
         ["OSC 8 target comes before visible text",
             "https://example.org/a \e]8;;https://example.org/b\alink\e]8;;\e\\",
             "https://example.org/b\nhttps://example.org/a\n"],
