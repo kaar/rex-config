@@ -3,6 +3,7 @@ local states = {
   open      = { rank = 1, icon = "terminal", detail = "Open session" },
   new       = { rank = 2, icon = "folder",   detail = "New session" },
   duplicate = { rank = 3, icon = "terminal", detail = "Duplicate labels" },
+  current   = { rank = 4, icon = "terminal", detail = "Current session" },
 }
 
 local function basename(path)
@@ -25,9 +26,11 @@ local function sessions_by_label()
   return sessions
 end
 
-local function session_state(session)
+local function session_state(session, current_session_id)
   if session == false then return states.duplicate end
-  return session and states.open or states.new
+  if not session then return states.new end
+  if session == current_session_id then return states.current end
+  return states.open
 end
 
 local function project_root()
@@ -70,11 +73,12 @@ local function create_session(name, path)
   return created.session_id
 end
 
-local function project_items(paths, sessions)
+local function project_items(paths, sessions, current_session_id)
   local projects = {}
   for _, path in ipairs(paths) do
     local name = basename(path)
-    projects[#projects + 1] = { path = path, name = name, state = session_state(sessions[name]) }
+    local state = session_state(sessions[name], current_session_id)
+    projects[#projects + 1] = { path = path, name = name, state = state }
   end
 
   table.sort(projects, function(a, b)
@@ -99,9 +103,9 @@ rex.action{
   title = "Open Project…",
   description = "Switch to a project session or create one in its directory.",
   args = {},
-  run = function()
+  run = function(ctx)
     local sessions = sessions_by_label()
-    local items = project_items(list_project_dirs(project_root()), sessions)
+    local items = project_items(list_project_dirs(project_root()), sessions, ctx.session_id)
     local path, reason, detail = rex.ui.pick{ title = "Open Project", items = items }
     if not path then
       if reason == "cancelled" then return end
