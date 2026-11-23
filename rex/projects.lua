@@ -70,6 +70,30 @@ local function create_session(name, path)
   return created.session_id
 end
 
+local function project_items(paths, sessions)
+  local projects = {}
+  for _, path in ipairs(paths) do
+    local name = basename(path)
+    projects[#projects + 1] = { path = path, name = name, state = session_state(sessions[name]) }
+  end
+
+  table.sort(projects, function(a, b)
+    if a.state.rank ~= b.state.rank then return a.state.rank < b.state.rank end
+    return a.name < b.name
+  end)
+
+  local items = {}
+  for i, project in ipairs(projects) do
+    items[i] = {
+      id = project.path,
+      title = project.name,
+      icon = project.state.icon,
+      detail = project.state.detail,
+    }
+  end
+  return items
+end
+
 rex.action{
   name = "open_project",
   title = "Open Project…",
@@ -77,27 +101,7 @@ rex.action{
   args = {},
   run = function()
     local sessions = sessions_by_label()
-    local projects = {}
-    for _, path in ipairs(list_project_dirs(project_root())) do
-      local name = basename(path)
-      projects[#projects + 1] = { path = path, name = name, state = session_state(sessions[name]) }
-    end
-
-    table.sort(projects, function(a, b)
-      if a.state.rank ~= b.state.rank then return a.state.rank < b.state.rank end
-      return a.name < b.name
-    end)
-
-    local items = {}
-    for i, project in ipairs(projects) do
-      items[i] = {
-        id = project.path,
-        title = project.name,
-        icon = project.state.icon,
-        detail = project.state.detail,
-      }
-    end
-
+    local items = project_items(list_project_dirs(project_root()), sessions)
     local path, reason, detail = rex.ui.pick{ title = "Open Project", items = items }
     if not path then
       if reason == "cancelled" then return end
