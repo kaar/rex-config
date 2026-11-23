@@ -62,13 +62,13 @@ end
 local function create_session(name, path)
   local created = assert(rex.call("session.create", {
     label = name,
-    initial_windows = {{
+    initial_windows = { {
       window_label = "Terminal",
-      layout = rex.layout.block{
+      layout = rex.layout.block {
         flavor = "com.superlogical.terminal.shell",
         options = { cwd = path },
       },
-    }},
+    } },
   }))
   return created.session_id
 end
@@ -98,27 +98,29 @@ local function project_items(paths, sessions, current_session_id)
   return items
 end
 
-rex.action{
+local function run_open_project(ctx)
+  local sessions = sessions_by_label()
+  local items = project_items(list_project_dirs(project_root()), sessions, ctx.session_id)
+  local path, reason, detail = rex.ui.pick { title = "Open Project", items = items }
+  if not path then
+    if reason == "cancelled" then return end
+    error("Could not pick a project: " .. (detail or reason), 0)
+  end
+
+  local name = basename(path)
+  -- The session list can change while the picker is open.
+  local id = sessions_by_label()[name]
+  if id == false then
+    error("More than one session is named " .. name .. ". Rename one and try again.", 0)
+  end
+
+  rex.client.queue("session.select", { session_id = id or create_session(name, path) })
+end
+
+rex.action {
   name = "open_project",
   title = "Open Project…",
   description = "Switch to a project session or create one in its directory.",
   args = {},
-  run = function(ctx)
-    local sessions = sessions_by_label()
-    local items = project_items(list_project_dirs(project_root()), sessions, ctx.session_id)
-    local path, reason, detail = rex.ui.pick{ title = "Open Project", items = items }
-    if not path then
-      if reason == "cancelled" then return end
-      error("Could not pick a project: " .. (detail or reason), 0)
-    end
-
-    local name = basename(path)
-    -- The session list can change while the picker is open.
-    local id = sessions_by_label()[name]
-    if id == false then
-      error("More than one session is named " .. name .. ". Rename one and try again.", 0)
-    end
-
-    rex.client.queue("session.select", { session_id = id or create_session(name, path) })
-  end,
+  run = run_open_project,
 }
