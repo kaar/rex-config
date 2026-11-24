@@ -15,6 +15,19 @@ test ! -e "$HOME/.config/rex" && test ! -L "$HOME/.config/rex" && ln -s "$PWD/re
 
 Choose **Reload Config** in Rex after installation or after you edit the configuration. To use the Neovim actions, make sure that `nvim` is on your login shell’s `PATH`.
 
+## Rex extensions
+
+[`rex/init.lua`](rex/init.lua) loads these custom actions. You can also find them in the Rex command palette:
+
+- [Open Project](rex/projects.lua): Switch to a project session or start one in the selected directory.
+- [Toggle Recent Session](rex/sessions.lua): Switch between the last two sessions on the same Rex server.
+- [Open Pi in New Tab](rex/pi.lua): Start Pi in a new tab in the focused pane’s working directory.
+- [Open Scrollback in Neovim](rex/scrollback.lua): View the focused pane’s saved terminal output in read-only mode.
+- [Open URL from Scrollback](rex/urls.lua): Pick a web link from recent terminal output and open it in the default browser.
+- [Open File from Scrollback](rex/files.lua): Pick a file from recent terminal output and open it in Neovim.
+
+The configuration also supports [Neovim navigation](#neovim-navigation) through the optional `rex-navigator.nvim` plugin.
+
 ## Shortcuts
 
 | Shortcut | Action |
@@ -24,6 +37,7 @@ Choose **Reload Config** in Rex after installation or after you edit the configu
 | Cmd+Shift+K | Toggle between the last two sessions on the same Rex server. |
 | Cmd+/ | Open Find to search terminal output. |
 | Cmd+B | Show or hide the sidebar. |
+| Ctrl+Cmd+Enter | Start Pi in the focused pane’s working directory. Split right or down based on the pane’s size, then focus Pi. |
 | Cmd+E | Open the focused pane’s scrollback (saved terminal output) in a read-only Neovim pane. |
 | Cmd+U | Pick a web link from recent output and open it in the default browser. |
 | Cmd+Shift+U | Pick a text file from recent output and open it in a floating Neovim pane. |
