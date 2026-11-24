@@ -21,6 +21,7 @@ Choose **Reload Config** in Rex after installation or after you edit the configu
 | --- | --- |
 | Cmd+O, Cmd+Shift+F, or Ctrl+Space then F | Open the project picker. |
 | Cmd+K or Cmd+F | Open Change Session. |
+| Cmd+Shift+K | Toggle between the last two sessions on the same Rex server. |
 | Cmd+/ | Open Find to search terminal output. |
 | Cmd+B | Show or hide the sidebar. |
 | Cmd+E | Open the focused pane’s scrollback (saved terminal output) in a read-only Neovim pane. |

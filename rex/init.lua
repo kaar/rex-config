@@ -2,12 +2,14 @@ require("projects")
 require("scrollback")
 require("urls")
 require("files")
+require("sessions")
 
 rex.bind("cmd+o", "open_project")
 rex.bind("cmd+shift+f", "open_project")
 rex.bind("ctrl+space>f", "open_project")
 -- Add Cmd+F for Change Session without removing the default Cmd+K.
 rex.bind("cmd+f", "session.switch")
+rex.bind("cmd+shift+k", "toggle_recent_session")
 rex.bind("cmd+e", "open_scrollback")
 rex.bind("cmd+u", "open_url")
 -- Replaces the default Install Update (client.update.accept) binding. Install
