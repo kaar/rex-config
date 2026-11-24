@@ -3,6 +3,7 @@ require("scrollback")
 require("urls")
 require("files")
 require("sessions")
+require("pi")
 
 rex.bind("cmd+o", "open_project")
 rex.bind("cmd+shift+f", "open_project")
@@ -25,6 +26,8 @@ rex.bind("ctrl+space>shift+\\", "pane.split", { direction = "right" })
 
 -- move pane to a new tab (!)
 rex.bind("ctrl+space>shift+1", "pane.move_to_new_tab")
+
+rex.bind("ctrl+cmd+enter", "open_pi_split")
 
 -- tab navigation
 rex.bind("alt+j", "client.tab.next")
