@@ -4,14 +4,17 @@ require("urls")
 require("files")
 
 rex.bind("cmd+o", "open_project")
+rex.bind("cmd+shift+f", "open_project")
 rex.bind("ctrl+space>f", "open_project")
+-- Add Cmd+F for Change Session without removing the default Cmd+K.
+rex.bind("cmd+f", "session.switch")
 rex.bind("cmd+e", "open_scrollback")
 rex.bind("cmd+u", "open_url")
 -- Replaces the default Install Update (client.update.accept) binding. Install
 -- Update stays available in the app menu.
 rex.bind("cmd+shift+u", "open_file")
 
-rex.bind("cmd+/", "client.sidebar.toggle")
+rex.bind("cmd+/", "client.find.open")
 rex.bind("cmd+b", "client.sidebar.toggle")
 
 -- splits (-, |)

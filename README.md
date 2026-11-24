@@ -19,7 +19,10 @@ Choose **Reload Config** in Rex after installation or after you edit the configu
 
 | Shortcut | Action |
 | --- | --- |
-| Cmd+O or Ctrl+Space then F | Open the project picker. |
+| Cmd+O, Cmd+Shift+F, or Ctrl+Space then F | Open the project picker. |
+| Cmd+K or Cmd+F | Open Change Session. |
+| Cmd+/ | Open Find to search terminal output. |
+| Cmd+B | Show or hide the sidebar. |
 | Cmd+E | Open the focused pane’s scrollback (saved terminal output) in a read-only Neovim pane. |
 | Cmd+U | Pick a web link from recent output and open it in the default browser. |
 | Cmd+Shift+U | Pick a text file from recent output and open it in a floating Neovim pane. |
