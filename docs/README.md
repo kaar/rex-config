@@ -20,7 +20,7 @@ through Discord, which confirms the person is a member of the server, and
 then asks them to allow the client. Clients that support MCP authorization
 need only the address.
 
-- [Installation](installation.md): At the current stage of beta testing, the macOS application and the Linux and FreeBSD server are available to all testers. The iOS application and the Windows application and server are available to…
+- [Installation](installation.md): At the current stage of beta testing, the macOS application and the Linux, FreeBSD and Windows server are available to all testers. The iOS and Windows applications are available to testers who…
 
 ## Customize
 
