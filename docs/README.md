@@ -22,12 +22,17 @@ need only the address.
 
 - [Installation](installation.md): At the current stage of beta testing, the macOS application and the Linux, FreeBSD and Windows server are available to all testers. The iOS and Windows applications are available to testers who…
 
+## Features
+
+- [Session Restore](features/session-restore.md): When you restart a Rex client (such as Rex for Mac, Windows, or iOS), it restores all your sessions as-is with full history. This is because the Rex Server is what stores all that state.
+
 ## Customize
 
 - [Configuration File](customize/config.md): Rex configuration is written in Lua and lives in a single file: init.lua. It binds keys, defines custom actions, declares the other servers you connect to, and more. It can load other Lua files (via…
 - [Keyboard Shortcuts](customize/keyboard-shortcuts.md): Keyboard shortcuts are defined in the configuration file with rex.bind and removed with rex.unbind. A shortcut binds a key to an action, such as splitting a pane or switching sessions.
 - [Key Sequences](customize/key-sequences.md): A key sequence is two or more keys pressed one after another, such as
 - [Key Modes](customize/key-modes.md): A key mode is a named set of keyboard shortcuts that only apply while the mode is active. Modes let ordinary keys do something else for a while, such as making the arrow keys resize panes. They are…
+- [Resume Rules](customize/resume-rules.md): Resume rules decide which programs Rex can automatically resume when it restores a session. Each rule is a setting in your configuration file, set with rex.set:
 - [Custom Actions](customize/actions.md): A custom action is a named Lua function defined in the configuration file with rex.action. Once defined, it works like any built-in action: it can be bound to a key, it appears in the command…
 - [Custom UI](customize/custom-ui.md): A custom action can stop partway, ask the person a question in the command palette, and carry on with the answer. rex.ui.input asks for a line of text, and rex.ui.pick shows a list to choose from.
 
@@ -43,6 +48,7 @@ need only the address.
 ## Build for Rex
 
 - [Program Status Protocol](build/program-status.md): A terminal escape sequence that lets a program tell the terminal what it is doing: idle, working, waiting on the user, finished, or failed, and why.
+- [Program Resume Protocol](build/program-resume.md): A terminal escape sequence that lets a program tell the terminal how to resume it after a terminal restarts for any reason. Program resumption is a hint, not a guarantee; terminals may ignore or…
 
 ## Server
 

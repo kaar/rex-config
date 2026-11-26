@@ -145,7 +145,8 @@ instead of `rex.service`. See
 [Starting on Demand](shared-server.md#starting-on-demand).
 
 A package upgrade restarts the service, which automatically ends every
-session on it. See [Upgrading](upgrading.md).
+program running on it. Its sessions are
+[restored](../features/session-restore.md). See [Upgrading](upgrading.md).
 
 Read [Shared Server](shared-server.md) before you set it up for other
 people. It covers giving them access, configuring the server, and changing
