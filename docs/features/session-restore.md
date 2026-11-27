@@ -28,7 +28,10 @@ built-in support for some programs:
 | Claude Code | Yes | Rex's hook reports the session. |
 | Codex | No | Rex ships a rule, but nothing reports yet. |
 | OpenCode | No | Rex ships a rule, but nothing reports yet. |
-| Pi | No | No rule. |
+| Pi | After 1.6.1 | Pi reports for itself, from its first release after 1.6.1. |
+| Gemini CLI | No | Rex ships a rule, but nothing reports yet. |
+| Copilot CLI | No | Rex ships a rule, but nothing reports yet. |
+| Crush | No | Rex ships a rule, but nothing reports yet. |
 
 You can see an example in the [Resume Rules](../customize/resume-rules.md#example-neovim-sessions)
 page how to configure Neovim to resume in less than 20 lines of Neovim Lua
@@ -37,7 +40,7 @@ configuration.
 ### Claude Code
 
 Claude Code comes back in the same pane, in the same conversation, with the
-flags it was started with, such as `--model opus`. When you quit it, you're
+flags the rule keeps, such as `--model opus`. When you quit it, you're
 in your shell in the same directory.
 
 The resumed Claude Code starts with the environment of a new terminal, not
@@ -52,6 +55,15 @@ Resuming Claude Code needs:
   one for Claude Code.
 - A shell that Rex can start a program through: bash, zsh, fish, nushell,
   sh, ash, dash, ksh, mksh, oksh, pdksh, or yash.
+
+### Pi
+
+Pi has integrated support for the program resume protocol since 1.6.1
+and Rex ships with a built-in rule to trust it. Pi comes back in
+the same session, without the flags it was started with.
+
+If you keep Pi's sessions in another directory, add a rule for it. See
+[Resume Rules](../customize/resume-rules.md#pi).
 
 ## Changing What Resumes
 
@@ -87,6 +99,13 @@ Stops resuming a Claude Code that was started with
 the flag. The rule no longer lists the flag, so Rex trusts no command
 with it.
 
+```lua
+rex.set("resume.trust.claude.flags.--dangerously-skip-permissions", "drop")
+```
+
+Brings Claude Code back without `--dangerously-skip-permissions`, so the
+resumed session has its permission checks again.
+
 `rex config check` lists the rules in force and the ones you turned off.
 A change applies when the server reloads its config. See
 [Resume Rules](../customize/resume-rules.md) for everything a rule can do.
@@ -97,7 +116,7 @@ When a program can't resume, its pane comes back as a plain shell, in the
 same directory, as if no program had been saved. That happens when:
 
 - The rules in force at the restart don't trust the command, for example
-  because you removed the rule or a flag the command uses.
+  because you removed the rule, or removed or dropped a flag the command uses.
 - `init.lua` stopped with an error before it finished loading. Rex trusts
   nothing until it loads in full.
 - The program named its directory, and that directory is gone.
@@ -151,10 +170,10 @@ On Linux, macOS, and FreeBSD, only the account the server runs as can read
 the saved files. Files are `0600` and directories are `0700`. On the shared
 server, that account is `rex`.
 
-**A saved command can hold a secret.** Rex saves the whole command a program
-reported, such as a system prompt passed to Claude Code, in plain text. We
-plan to encrypt these files in the future where a source to store keys is
-available.
+**A saved command can hold a secret.** Rex saves the command a restart runs,
+with every flag the rule keeps, such as a system prompt passed to Claude
+Code, in plain text. We plan to encrypt these files in the future where a
+source to store keys is available.
 
 ## Debugging
 
@@ -169,7 +188,11 @@ rex block call -b "$REX_BLOCK" program_resume_records
 ```
 
 `chosen` is the record a restart would resume, and `trusted` says whether a
-rule trusts it. An untrusted record has an `untrusted_reason` instead:
+rule trusts it. For a trusted record, `command` is what a restart runs. When
+the program reported something else, such as a flag your rule drops, the
+record also has `reported_command`, the command as the program sent it.
+
+An untrusted record has an `untrusted_reason` instead:
 
 | Reason              | Meaning                                                      |
 | ------------------- | ------------------------------------------------------------ |
@@ -177,7 +200,7 @@ rule trusts it. An untrusted record has an `untrusted_reason` instead:
 | `dir_not_allowed`   | The program runs outside the directories the rule allows.    |
 | `flag_not_listed`   | The program was started with a flag the rule doesn't list.   |
 | `flag_value`        | A flag the rule lists has a value that doesn't fit the rule. |
-| `flags_differ`      | The command's flags aren't the ones the rule keeps.          |
+| `flags_differ`      | The command goes on past a rule without flags, or a saved command has a flag the rule now drops. |
 | `program_differs`   | The process that reported isn't the program the command starts. |
 | `wrapped`           | The program runs under another program that isn't a shell.   |
 | `launch_unreadable` | Rex couldn't read how the program was started.               |

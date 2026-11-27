@@ -24,8 +24,8 @@ back and when.
 ## How Rex Decides
 
 A program that wants to be resumed reports the command that starts it again,
-using the [Program Resume Protocol](../build/program-resume.md). Rex runs that
-command after a restart without asking you as long as a rule exists to allow
+using the [Program Resume Protocol](../build/program-resume.md). Rex resumes the
+program after a restart without asking you as long as a rule exists to allow
 it.
 
 A rule has three parts:
@@ -38,6 +38,15 @@ A rule has three parts:
 
 Rex doesn't trust a program's report. It takes the report it sent and
 cross-checks it with your rules and takes your rules as truth.
+
+For a rule with flags, Rex filters the command that a restart runs. Rex
+takes the command sent by the report, then drops any disallowed flags from
+the command line. Example:
+
+```
+started as  claude --dangerously-skip-permissions --model opus -c "fix the tests"
+resumed as  claude --resume 015d3962-... --dangerously-skip-permissions --model opus
+```
 
 Rex also performs a number of its own checks. For example, the process must
 also be the program the command starts. For example,
@@ -53,7 +62,11 @@ not trusted. Resuming the command alone would leave the sandbox out.
 | --- | --- | --- |
 | `claude` | `claude --resume <uuid>` | 44 kept, 12 dropped |
 | `codex` | `codex resume <uuid>` | None |
+| `copilot` | `copilot --resume <uuid>` | 57 kept, 10 dropped |
+| `crush` | `crush --session <uuid>` | 8 kept, 6 dropped |
+| `gemini` | `gemini --resume <uuid>` | 20 kept, 8 dropped |
 | `opencode` | `opencode --session <id>` | None |
+| `pi` | `pi --session <uuid>` | None |
 
 The `claude` rule keeps the flags that shape a session, such as `--model`,
 `--permission-mode` and `--dangerously-skip-permissions`. It drops the flags
@@ -61,7 +74,14 @@ that pick a session or start a task, such as `--continue`, because
 `--resume` does that job instead. A Claude Code started with `--print`, or with
 any flag the rule doesn't list, is not resumed.
 
+The `copilot`, `crush` and `gemini` rules sort flags the same way. Each one
+keeps the flags that skip permission prompts, such as `--yolo`, so a session
+that skipped them still skips them when it comes back.
+
 A rule without flags trusts its command with nothing after it.
+
+[Session Restore](../features/session-restore.md#programs-that-resume) lists which
+of these agents report today.
 
 ### Turning Off the Built-in Rules
 
@@ -105,6 +125,14 @@ rex.set("resume.trust.claude.flags.--dangerously-skip-permissions", false)
 
 `false` takes the flag out of the rule, so a program started with that flag is
 not resumed at all. `"keep"` and `"drop"` set whether the flag comes back.
+
+```lua
+-- Resume Claude Code with permission checks turned back on
+rex.set("resume.trust.claude.flags.--dangerously-skip-permissions", "drop")
+```
+
+Since Rex builds the command from the rule, a dropped flag stays out even
+when the program reports it.
 
 To replace a built-in rule, set the whole rule. Nothing of the built-in rule is
 kept:
@@ -194,7 +222,7 @@ $ rex config check
 ...
 resume rules: 0
   not in force:
-    claude, codex and opencode off because resume.defaults is false at init.lua:1
+    claude, codex, copilot, crush, gemini, opencode and pi off because resume.defaults is false at init.lua:1
 ```
 
 Sessions are still restored. Each terminal starts a plain shell in its saved
@@ -239,6 +267,9 @@ rex.set("resume.trust.nvim", {
 })
 ```
 
+`-S` runs the session file as a script, so a rule that trusted any path would
+run any file. `rex.match.under` limits it to the one directory.
+
 Save a session there with
 `:mksession ~/.local/state/nvim/sessions/work.vim`, and Rex resumes Neovim
 with it. A session saved anywhere else isn't resumed.
@@ -265,16 +296,27 @@ rex.set("resume.trust.nvim", {
 ```
 $ rex config check
 ...
-resume rules: 3
+resume rules: 7
   claude (built in)
     command: claude --resume <uuid>
     dir: ~/code (init.lua:2)
     flags: 43 kept, 12 dropped
       --dangerously-skip-permissions removed (init.lua:3)
+  copilot (built in)
+    command: copilot --resume <uuid>
+    flags: 57 kept, 10 dropped
+  crush (built in)
+    command: crush --session <uuid>
+    flags: 8 kept, 6 dropped
+  gemini (built in)
+    command: gemini --resume <uuid>
+    flags: 20 kept, 8 dropped
   nvim (init.lua:4)
     command: nvim -S <path under ~/.local/state/nvim/sessions>
   opencode (built in)
     command: opencode --session <id>
+  pi (built in)
+    command: pi --session <uuid>
   not in force:
     codex removed at init.lua:1
 ```
@@ -286,19 +328,30 @@ leaves out the whole built-in rule. Here line 3 misspells `"keep"`:
 ```lua
 rex.set("resume.trust.codex", false)
 rex.set("resume.trust.claude.dir", "~/code")
-rex.set("resume.trust.claude.flags.--model", "keeep")
+rex.set("resume.trust.claude.flags.--dangerously-skip-permissions", "keeep")
 ```
 
 ```
 $ rex config check
 ...
-resume rules: 1
+resume rules: 5
+  copilot (built in)
+    command: copilot --resume <uuid>
+    flags: 57 kept, 10 dropped
+  crush (built in)
+    command: crush --session <uuid>
+    flags: 8 kept, 6 dropped
+  gemini (built in)
+    command: gemini --resume <uuid>
+    flags: 20 kept, 8 dropped
   opencode (built in)
     command: opencode --session <id>
+  pi (built in)
+    command: pi --session <uuid>
   not in force:
     claude left out for a mistake, see the warning for init.lua:3
     codex removed at init.lua:1
-warning init.lua:3: setting: resume.trust.claude: flags: "--model": unknown action "keeep", want "keep" or "drop", so this rule is ignored
+warning init.lua:3: setting: resume.trust.claude: flags: "--dangerously-skip-permissions": unknown action "keeep", want "keep" or "drop", so this rule is ignored
 ```
 
 `rex config reload` applies new rules to running terminals at once. If a
@@ -320,7 +373,7 @@ A record that isn't trusted has an `untrusted_reason`:
 | `wrapped` | The process runs under a program other than a shell, such as a sandbox. |
 | `flag_not_listed` | The program was started with a flag the rule doesn't list. |
 | `flag_value` | A flag's values don't fit the rule, such as a value for a flag that takes none. |
-| `flags_differ` | The command's flags aren't the ones the rule keeps from the program's command line. |
+| `flags_differ` | The command goes on past a rule without `flags`, or a saved command has a flag the rule now drops. |
 | `dir_not_allowed` | The program would be resumed outside the directories the rule allows. |
 | `launch_unreadable` | Rex couldn't read the program's command line. |
 | `config_incomplete` | `init.lua` failed before its end, and no earlier load worked. |
